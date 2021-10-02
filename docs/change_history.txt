@@ -1,0 +1,94 @@
+
+Bug Fixes
+=========
+
+SAL 06/02/2006
+--------------
+Toned down the exotic pieces so that none of them have any holes.  
+
+Modified style0 to add horizontal lines.
+
+
+
+SAL 05/31/2006  
+--------------
+Exotic pieces added (to demonstrate block rotation customization)
+
+Row completion animation added
+
+Interface of board, piece, and rotations changed to allow for dynamic resizing at runtime (before, since using template arguments to specify row and column size, these could only be sized at compile time -- which was more memory efficient, but wouldn't allow for generation of random puzzle pieces at runtime)
+
+
+SAL 05/29/2006  Missing functionality
+--------------
+During a rotation or left/right move, was only checking for wall collision.
+Was not checking for collision with existing stuck piece on the board.
+
+Added the collision detection for existing stuck pieces during rotation and
+movement operations.
+
+
+SAL 05/29/2006  Error induced due to code clean up
+--------------
+In order to get rid of a compiler warning, I changed the type associated with
+current_rotation_grid_index_ in Puzzle_piece.h from:
+
+  int current_rotation_grid_index_;
+
+To:
+
+  typename Rotation_grids::size_type current_rotation_grid_index_;
+
+The compiler warning was that I was comparing a signed int value with an
+unsigned int value (when comparing current_rotation_grid_index_ with
+rotation_grids_.size()).  This is because most std::vector implementations
+set the size() type to unsigned int (since it does not make sense for a
+container to have negative size).  By using the "size_type" typedef within
+the vector class, this gets rid of the compiler warning since there is no
+longer a type mismatch.
+
+However, when rotating to the left, the original implementation decreases
+the value of current_rotation_grid_index_ and checked for < 0, which doesn't
+work for unsigned integer types.  So to provide a fix that works with either
+signed or unsigned int types, and provides no more compiler warnings, the code
+was changed from:
+
+  // Since doing a left rotation, decrease which rotation grid to use
+  --current_rotation_grid_index_;
+  if (current_rotation_grid_index_ < 0)
+  {
+    // Index out of bounds, wrap to the last rotation grid...
+    current_rotation_grid_index_ = rotation_grids_.size()-1;
+  }
+
+To:
+
+  // Since doing a left rotation, decrease which rotation grid to use
+  if (current_rotation_grid_index_ == 0)
+  {
+    // Index out of bounds, wrap to the last rotation grid...
+    current_rotation_grid_index_ = rotation_grids_.size()-1;
+  }
+  else
+  {
+    --current_rotation_grid_index_;
+  }
+
+
+SAL 05/29/2006  Error induced during code optimization
+--------------
+Left rotations of the line-style puzzle piece were not dropping completly to the
+bottom.  This was because I had "optimized" the implementation of the
+recalculate_helper_values() method of the Puzzle_piece class.  In part of that
+optimization, I had put:
+
+    (*rotation_grids_.end()-1)->recalculate_bottom_blank_rows();
+
+Instead of:
+
+    (*(rotation_grids_.end()-1))->recalculate_bottom_blank_rows();
+
+The original version should have actually caused an access violation, but
+did not in either BCB6 of VS2005.  At any rate, the corrected code has fixed
+the problem.
+
